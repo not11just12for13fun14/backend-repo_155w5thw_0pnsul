@@ -1,6 +1,10 @@
 import os
-from fastapi import FastAPI
+from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from pydantic import BaseModel, EmailStr
+from typing import Optional
+
+from database import create_document
 
 app = FastAPI()
 
@@ -19,6 +23,23 @@ def read_root():
 @app.get("/api/hello")
 def hello():
     return {"message": "Hello from the backend API!"}
+
+# Contact form schema (mirrors schemas.py -> Contactmessage)
+class ContactMessageIn(BaseModel):
+    name: str
+    email: EmailStr
+    message: str
+    company: Optional[str] = None
+    subject: Optional[str] = None
+
+@app.post("/api/contact")
+def submit_contact(payload: ContactMessageIn):
+    try:
+        # Collection name derived from class name in schemas: Contactmessage -> "contactmessage"
+        doc_id = create_document("contactmessage", payload.model_dump())
+        return {"status": "ok", "id": doc_id}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/test")
 def test_database():
